@@ -1,0 +1,16 @@
+build/
+dist/
+*.egg-info/
+.vscode/
+*.out
+*.o
+main
+__pycache__/
+*.so
+line-protocol-parser-*/
+*.tar.xz
+*.deb
+*.buildinfo
+*.changes
+*.dsc
+sandbox.py

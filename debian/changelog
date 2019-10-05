@@ -1,0 +1,5 @@
+line-protocol-parser (1.0.0-1) stable; urgency=medium
+
+  * Initial release.
+
+ -- Daniel Andersson <daniel.4ndersson@gmail.com>  Thu, 16 Oct 2019 15:53:23 +0200

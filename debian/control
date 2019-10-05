@@ -1,0 +1,17 @@
+Source: line-protocol-parser
+Section: python
+Priority: optional
+Maintainer: Daniel Andersson <daniel.4ndersson@gmail.com>
+Build-Depends: debhelper-compat (= 11),
+  python3-all,
+  python3-all-dev,
+  python3-setuptools,
+  dh-python
+Standards-Version: 4.2.1
+Rules-Requires-Root: no
+X-Python3-Version: >= 3.7
+
+Package: python3-line-protocol-parser
+Architecture: any
+Depends: ${python3:Depends}, ${misc:Depends}
+Description: Parse InfluxDB line protocol string into Python dictionary
