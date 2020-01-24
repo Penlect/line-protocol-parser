@@ -79,7 +79,7 @@ class TestPoint(unittest.TestCase):
         p = parse_line('foobar,tag1=1 f1=TRUE 0')
         self.assertAlmostEqual(p['fields']['f1'], True)
 
-    def test_from_line_field_values_boolean_true(self):
+    def test_from_line_field_values_boolean_false(self):
         p = parse_line('foobar,tag1=1 f1=f 0')
         self.assertAlmostEqual(p['fields']['f1'], False)
         p = parse_line('foobar,tag1=1 f1=false 0')
