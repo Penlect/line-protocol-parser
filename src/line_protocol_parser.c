@@ -241,7 +241,7 @@ parse_value(struct LP_Item* item)
     size_t i = 0;
     size_t length = 0;
     double candidate_d = 0;
-    int candidate_i = 0;
+    signed long long candidate_i = 0;
     char boolstr[6];
     char *endptr = NULL;
 
@@ -264,7 +264,7 @@ parse_value(struct LP_Item* item)
     if (*endptr == 'i' && *(endptr + 1) == '\0') {
         item->value.i = candidate_i;
         item->type = LP_INTEGER;
-        LP_DEBUG_PRINT("Type is integer: %d\n", candidate_i);
+        LP_DEBUG_PRINT("Type is integer: %lld\n", candidate_i);
         return 1;
     }
 

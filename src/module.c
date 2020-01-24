@@ -182,8 +182,16 @@ static struct PyModuleDef _line_protocol_parser_module = {
 PyMODINIT_FUNC
 PyInit__line_protocol_parser(void){
     PyObject* module = PyModule_Create(&_line_protocol_parser_module);
+    if (module == NULL) {
+        return NULL;
+    }
     LineFormatError = PyErr_NewExceptionWithDoc(
         "_line_protocol_parser.LineFormatError", LineFormatError__doc__, NULL, NULL);
-    PyModule_AddObject(module, "LineFormatError", LineFormatError);
+    Py_XINCREF(LineFormatError);
+    if (PyModule_AddObject(module, "LineFormatError", LineFormatError) < 0){
+        Py_XDECREF(LineFormatError);
+        Py_DECREF(module);
+        return NULL;
+    }
     return module;
 }

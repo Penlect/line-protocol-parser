@@ -1,3 +1,9 @@
+line-protocol-parser (1.0.1-1) stable; urgency=medium
+
+  * Fixed issue with integer fields. Big integers int64 was accidently converted to int32.
+
+ -- Daniel Andersson <daniel.4ndersson@gmail.com>  Fri, 24 Jan 2020 19:25:28 +0100
+
 line-protocol-parser (1.0.0-1) stable; urgency=medium
 
   * Initial release.

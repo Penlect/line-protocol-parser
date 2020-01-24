@@ -1,4 +1,4 @@
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __author__ = "Daniel Andersson"
 __maintainer__ = "Daniel Andersson"
 __email__ = "daniel.4ndersson@gmail.com"

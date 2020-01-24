@@ -61,6 +61,10 @@ class TestPoint(unittest.TestCase):
         p = parse_line('foobar,tag1=1 f1=123i 0')
         self.assertAlmostEqual(p['fields']['f1'], 123)
 
+    def test_from_line_field_values_big_integer(self):
+        p = parse_line('foobar,tag1=1 f1=15758827520i 0')
+        self.assertAlmostEqual(p['fields']['f1'], 15_758_827_520)
+
     def test_from_line_field_values_string(self):
         p = parse_line('foobar,tag1=1 f1="MelodiesOfLife" 0')
         self.assertAlmostEqual(p['fields']['f1'], "MelodiesOfLife")
