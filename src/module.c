@@ -108,6 +108,7 @@ try:
         if ((PyDict_SetItemString(tags, tmp->key, tag_value)) == -1) {
             goto except;
         }
+        Py_DECREF(tag_value);
         tmp = tmp->next_item;
     }
     if ((fields = PyDict_New()) == NULL) {
@@ -136,6 +137,7 @@ try:
             if ((PyDict_SetItemString(fields, tmp->key, field_value)) == -1) {
                 goto except;
             }
+            Py_DECREF(field_value);
             tmp = tmp->next_item;
         }
     }
@@ -151,17 +153,17 @@ try:
     assert(!PyErr_Occurred());
     goto finally;
 except:
-    Py_XDECREF(measurement);
-    Py_XDECREF(tags);
-    Py_XDECREF(fields);
-    Py_XDECREF(time);
     Py_XDECREF(tag_value);
     Py_XDECREF(field_value);
     output = NULL;
 finally:
+    Py_XDECREF(measurement);
+    Py_XDECREF(tags);
+    Py_XDECREF(fields);
+    Py_XDECREF(time);
     Py_XDECREF(input);
     if (point != NULL){
-        PyMem_Free(point);
+        LP_free_point(point);
     }
     return output;
 }

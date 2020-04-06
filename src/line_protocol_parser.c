@@ -252,6 +252,7 @@ parse_value(struct LP_Item* item)
     endptr = NULL;
     candidate_d = strtod(item->value.s, &endptr);
     if (*endptr == '\0') {
+        LP_FREE(item->value.s);
         item->value.f = candidate_d;
         item->type = LP_FLOAT;
         LP_DEBUG_PRINT("Type is double: %f\n", candidate_d);
@@ -262,6 +263,7 @@ parse_value(struct LP_Item* item)
     endptr = NULL;
     candidate_i = strtoll(item->value.s, &endptr, 10);
     if (*endptr == 'i' && *(endptr + 1) == '\0') {
+        LP_FREE(item->value.s);
         item->value.i = candidate_i;
         item->type = LP_INTEGER;
         LP_DEBUG_PRINT("Type is integer: %lld\n", candidate_i);
@@ -283,11 +285,13 @@ parse_value(struct LP_Item* item)
 
     // Try parse boolan
     if (length == 1 && tolower(*(item->value.s)) == 't' ) {
+        LP_FREE(item->value.s);
         item->value.b = 1;
         item->type = LP_BOOLEAN;
         LP_DEBUG_PRINT("Type is boolean: %d\n", item->value.b);
         return 1;
     } else if (length == 1 && tolower(*(item->value.s)) == 'f' ) {
+        LP_FREE(item->value.s);
         item->value.b = 0;
         item->type = LP_BOOLEAN;
         LP_DEBUG_PRINT("Type is boolean: %d\n", item->value.b);
@@ -298,11 +302,13 @@ parse_value(struct LP_Item* item)
             boolstr[i] = tolower(item->value.s[i]);
         }
         if ((strcmp(boolstr, "true") == 0)) {
+            LP_FREE(item->value.s);
             item->value.b = 1;
             item->type = LP_BOOLEAN;
             LP_DEBUG_PRINT("Type is boolean: %d\n", item->value.b);
             return 1;
         } else if ((strcmp(boolstr, "false") == 0)) {
+            LP_FREE(item->value.s);
             item->value.b = 0;
             item->type = LP_BOOLEAN;
             LP_DEBUG_PRINT("Type is boolean: %d\n", item->value.b);
