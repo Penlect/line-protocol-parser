@@ -457,12 +457,9 @@ LP_parse_line(const char *line, int *status)
     }
 
     // Parse the nanosecond timestamp
-    if(start >= end)
-    {
+    if(start >= end) {
         point->time = 0;
-    }
-    else
-    {
+    } else {
         point->time = strtoull(line + start, &endptr_time, 10);
         LP_DEBUG_PRINT("Time: %llu\n", point->time);
         if (*endptr_time != '\0' && *endptr_time != '\n' && *endptr_time != '\r') {
