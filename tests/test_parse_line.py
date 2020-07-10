@@ -57,8 +57,16 @@ class TestPoint(unittest.TestCase):
         p = parse_line('foobar,tag1=1 f1=3.14 0')
         self.assertAlmostEqual(p['fields']['f1'], 3.14)
 
+    def test_from_line_field_values_float_without_timestamp(self):
+        p = parse_line('foobar,tag1=1 f1=3.14')
+        self.assertAlmostEqual(p['fields']['f1'], 3.14)
+
     def test_from_line_field_values_integer(self):
         p = parse_line('foobar,tag1=1 f1=123i 0')
+        self.assertAlmostEqual(p['fields']['f1'], 123)
+
+    def test_from_line_field_values_integer_without_timestamp(self):
+        p = parse_line('foobar,tag1=1 f1=123i')
         self.assertAlmostEqual(p['fields']['f1'], 123)
 
     def test_from_line_field_values_big_integer(self):
@@ -145,7 +153,7 @@ class TestPoint(unittest.TestCase):
 
     def test_field_value_error(self):
         with self.assertRaisesRegex(LineFormatError, 'value of field'):
-            parse_line('measurement,tag=value field=1.23')
+            parse_line('measurement,tag=value field=')
 
     def test_field_value_type_error(self):
         with self.assertRaisesRegex(LineFormatError, 'type of field'):
