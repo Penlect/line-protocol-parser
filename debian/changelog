@@ -1,3 +1,9 @@
+line-protocol-parser (1.1.0-1) stable; urgency=medium
+
+  * Merged 'make timestamp optional' contributed by Jakub Mach.
+
+ -- Daniel Andersson <daniel.4ndersson@gmail.com>  Sat, 05 Sep 2020 10:54:04 +0200
+
 line-protocol-parser (1.0.2-2) stable; urgency=medium
 
   * Merged memory leak bug fixes contributed by Alan Dragomirecký.

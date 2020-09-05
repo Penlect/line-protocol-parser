@@ -477,6 +477,8 @@ done:
     return point;
 }
 
+#ifndef NDEBUG
+
 static int
 LP_main(void)
 {
@@ -491,3 +493,5 @@ LP_main(void)
     LP_free_point(point);
     return status;
 }
+
+#endif

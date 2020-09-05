@@ -1,36 +1,24 @@
-from setuptools import setup, Extension, find_packages
-import platform
-import sys
+"""line-protocol-parser build script"""
 
-sys.path.append('line_protocol_parser')
-from _info import (
-    __version__,
-    __author__,
-    __maintainer__,
-    __email__,
-    __status__,
-    __url__,
-    __license__
-)
-sys.path.remove('line_protocol_parser')
+import platform
+from setuptools import setup, Extension, find_packages
+
 with open('README.rst') as readme_file:
     long_description = readme_file.read()
 
+# The package can't be imported at this point since the extension
+# module is imported in __init__ and it does not exist yet. Therefore,
+# we grab the metadata lines manually.
+with open('line_protocol_parser/__init__.py') as init:
+    lines = [line for line in init.readlines() if line.startswith('__')]
+exec(''.join(lines), globals())
+
 if platform.system() == 'Windows':
     # MSVC
-    extra_compile_args = ['/DLP_MALLOC=PyMem_Malloc',
-                          '/DLP_FREE=PyMem_Free',
-                          '/DPY_SSIZE_T_CLEAN',
-                          '/FI', 'Python.h']
-elif platform.system() == 'Linux':
-    # GCC
-    extra_compile_args = ['-DLP_MALLOC=PyMem_Malloc',
-                          '-DLP_FREE=PyMem_Free',
-                          '-DPY_SSIZE_T_CLEAN',
-                          '-include', 'Python.h']
+    extra_compile_args = ['/FI', 'Python.h']
 else:
-    # TODO: Test on Mac
-    extra_compile_args = []
+    # GCC & clang
+    extra_compile_args = ['-include', 'Python.h']
 
 setup(
     name='line-protocol-parser',
@@ -43,14 +31,19 @@ setup(
     keywords='InfluxDB influx line protocol parser reader',
     url=__url__,
     ext_modules=[
-        Extension('line_protocol_parser._line_protocol_parser',
-                  sources=['src/line_protocol_parser.c', 'src/module.c'],
-                  include_dirs=['include'],
-                  # undef_macros=['NDEBUG'],
-                  extra_compile_args=extra_compile_args
-                  )
+        Extension(
+            'line_protocol_parser._line_protocol_parser',
+            sources=['src/line_protocol_parser.c', 'src/module.c'],
+            include_dirs=['include'],
+            define_macros=[
+                ('LP_MALLOC', 'PyMem_Malloc'),
+                ('LP_FREE', 'PyMem_Free'),
+                ('PY_SSIZE_T_CLEAN', None)
+            ],
+            extra_compile_args=extra_compile_args)
     ],
     packages=find_packages(exclude=['tests']),
+    include_package_data=True,
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
@@ -60,14 +53,14 @@ setup(
         'Topic :: Software Development :: Version Control :: Git',
         'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
-        'Operating System :: Microsoft :: Windows :: Windows 10',
         'Operating System :: POSIX :: Linux',
+        'Operating System :: MacOS',
+        'Operating System :: Microsoft :: Windows :: Windows 10',
         'Programming Language :: C',
+        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: Implementation :: CPython'
     ]
 )
-
-# For development, use "python3 setup.py develop".
