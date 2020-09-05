@@ -209,6 +209,10 @@ search_comma_space(const char *line, size_t start, size_t end, enum _LP_Part par
                 return i;
             }
         }
+        else if (i+1 == end && part == LP_FIELD_VALUE) {
+            LP_DEBUG_PRINT("reached end of line and we're parsing a field value %c\n", line[i]);
+            return i+1;
+        }
     }
     return 0; // Error
 }
@@ -426,7 +430,7 @@ LP_parse_line(const char *line, int *status)
         LP_DEBUG_PRINT("New field key: %s\n", item->key);
         start = index + 1;
         // FIELD VALUE
-        if ((index = search_comma_space(line, start, end, LP_FIELD_VALUE)) == 0){
+        if ((index = search_comma_space(line, start, end, LP_FIELD_VALUE)) == 0) {
             // Failed to find end of field value
             *status = LP_FIELD_VALUE_ERROR;
             goto error;
@@ -451,13 +455,18 @@ LP_parse_line(const char *line, int *status)
     if (item != NULL) {
         point->fields = item;
     }
+
     // Parse the nanosecond timestamp
-    point->time = strtoull(line + start, &endptr_time, 10);
-    LP_DEBUG_PRINT("Time: %llu\n", point->time);
-    if (*endptr_time != '\0' && *endptr_time != '\n' && *endptr_time != '\r') {
-        // Failed to parse whole nanosecond timestamp
-        *status = LP_TIME_ERROR;
-        goto error;
+    if(start >= end) {
+        point->time = 0;
+    } else {
+        point->time = strtoull(line + start, &endptr_time, 10);
+        LP_DEBUG_PRINT("Time: %llu\n", point->time);
+        if (*endptr_time != '\0' && *endptr_time != '\n' && *endptr_time != '\r') {
+            // Failed to parse whole nanosecond timestamp
+            *status = LP_TIME_ERROR;
+            goto error;
+        }
     }
     goto done;
 error:
