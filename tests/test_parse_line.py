@@ -65,6 +65,10 @@ class TestPoint(unittest.TestCase):
         p = parse_line('foobar,tag1=1 f1=123i 0')
         self.assertAlmostEqual(p['fields']['f1'], 123)
 
+    def test_from_line_field_values_uinteger(self):
+        p = parse_line('foobar,tag1=1 f1=123u 0')
+        self.assertAlmostEqual(p['fields']['f1'], 123)
+
     def test_from_line_field_values_integer_without_timestamp(self):
         p = parse_line('foobar,tag1=1 f1=123i')
         self.assertAlmostEqual(p['fields']['f1'], 123)

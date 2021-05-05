@@ -16,7 +16,7 @@
 
 /* Indicates which type a field has */
 enum LP_ValueType {
-    LP_FLOAT, LP_INTEGER, LP_BOOLEAN, LP_STRING
+    LP_FLOAT, LP_INTEGER, LP_UINTEGER, LP_BOOLEAN, LP_STRING
 };
 
 /* Represents the value of a tag or field.
