@@ -246,6 +246,7 @@ parse_value(struct LP_Item* item)
     size_t length = 0;
     double candidate_d = 0;
     signed long long candidate_i = 0;
+    unsigned long long candidate_u = 0ULL;
     char boolstr[6];
     char *endptr = NULL;
 
@@ -271,6 +272,21 @@ parse_value(struct LP_Item* item)
         item->value.i = candidate_i;
         item->type = LP_INTEGER;
         LP_DEBUG_PRINT("Type is integer: %lld\n", candidate_i);
+        return 1;
+    }
+
+    // Try parse unsigned integer
+    endptr = NULL;
+    errno = 0; // we need to reset, otherwise errno MIGHT be the value of the strtoll above
+    candidate_u = strtoull(item->value.s, &endptr, 10);
+    if (*endptr == 'u' && *(endptr + 1) == '\0') {
+        LP_FREE(item->value.s);
+        if (candidate_u == ULLONG_MAX && errno == ERANGE)
+            return 0;
+
+        item->value.i = candidate_u;
+        item->type = LP_UINTEGER;
+        LP_DEBUG_PRINT("Type is uinteger: %llu\n", candidate_u);
         return 1;
     }
 

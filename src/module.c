@@ -124,6 +124,9 @@ try:
                 case LP_INTEGER:
                     field_value = PyLong_FromLongLong(tmp->value.i);
                     break;
+                case LP_UINTEGER:
+                    field_value = PyLong_FromUnsignedLongLong(tmp->value.i);
+                    break;
                 case LP_BOOLEAN:
                     field_value = PyBool_FromLong(tmp->value.b);
                     break;
