@@ -51,7 +51,6 @@ setup(
         'Intended Audience :: Education',
         'Intended Audience :: Science/Research',
         'Topic :: Software Development :: Version Control :: Git',
-        'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
         'Operating System :: POSIX :: Linux',
         'Operating System :: MacOS',
