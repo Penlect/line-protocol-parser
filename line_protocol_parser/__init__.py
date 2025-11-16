@@ -9,4 +9,4 @@ __contact__ = __email__
 __copyright__ = 'Copyright (c) 2019 Daniel Andersson'
 __license__ = 'MIT'
 __url__ = "https://github.com/Penlect/line-protocol-parser"
-__version__ = '1.1.2'
+__version__ = '1.1.3'
