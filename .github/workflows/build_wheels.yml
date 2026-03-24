@@ -21,13 +21,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-24.04, windows-2022, macos-14]
+        # macos-15-intel is an Intel runner, macos-14 is Apple Silicon
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-15-intel, macos-14]
 
     steps:
       - uses: actions/checkout@v5
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.2.1
+        uses: pypa/cibuildwheel@v3.3.1
 
       - uses: actions/upload-artifact@v4
         with:
@@ -43,6 +44,12 @@ jobs:
       - name: Build sdist
         run: pipx run build --sdist
 
+      - name: Verify tracked files unchanged
+        run: |
+          git update-index -q --refresh
+          git diff --exit-code
+          git diff --cached --exit-code
+
       - uses: actions/upload-artifact@v4
         with:
           name: sdist
@@ -50,12 +57,47 @@ jobs:
 
   upload_pypi:
     needs: [build_wheels, build_sdist]
+    environment: pypi
+    permissions:
+      id-token: write
     runs-on: ubuntu-24.04
     # upload to PyPI on every tag starting with 'v'
     # if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     # alternatively, to publish when a GitHub Release is created, use the following rule:
     if: github.event_name == 'release' && github.event.action == 'published'
     steps:
+      - uses: actions/checkout@v5
+
+      - name: Verify tag matches line_protocol_parser.__version__
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          text = Path("line_protocol_parser/__init__.py").read_text(
+              encoding="utf-8"
+          )
+          match = re.search(
+              r"^__version__ = '([^']+)'$", text, flags=re.MULTILINE
+          )
+          if not match:
+              raise SystemExit(
+                  "Could not find __version__ in "
+                  "line_protocol_parser/__init__.py"
+              )
+          package_version = match.group(1)
+          tag = os.environ["GITHUB_REF_NAME"]
+          if tag.startswith("v"):
+              tag = tag[1:]
+          if package_version != tag:
+              raise SystemExit(
+                  f"Version mismatch: tag={os.environ['GITHUB_REF_NAME']} "
+                  f"but line_protocol_parser.__version__={package_version}"
+              )
+          print(f"Version check OK: {package_version}")
+          PY
+
       - uses: actions/download-artifact@v4
         with:
           pattern: wheels-*
@@ -69,8 +111,5 @@ jobs:
 
       - uses: pypa/gh-action-pypi-publish@v1.13.0
         with:
-          user: __token__
-          password: ${{ secrets.pypi_password }}
           verbose: true
-          skip_existing: true
-          # To test: repository_url: https://test.pypi.org/legacy/
+          skip-existing: true
