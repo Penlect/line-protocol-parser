@@ -27,6 +27,7 @@ enum LP_ValueType {
 union LP_Value {
     double f; // Float
     signed long long i; // Integer
+    unsigned long long u; // Unsigned integer
     int b; // Boolean
     char *s;  // String
 };

@@ -284,7 +284,7 @@ parse_value(struct LP_Item* item)
         if (candidate_u == ULLONG_MAX && errno == ERANGE)
             return 0;
 
-        item->value.i = candidate_u;
+        item->value.u = candidate_u;
         item->type = LP_UINTEGER;
         LP_DEBUG_PRINT("Type is uinteger: %llu\n", candidate_u);
         return 1;
