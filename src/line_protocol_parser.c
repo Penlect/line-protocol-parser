@@ -489,6 +489,12 @@ LP_parse_line(const char *line, int *status)
     }
     goto done;
 error:
+    if (item != NULL && point != NULL &&
+        item != point->tags && item != point->fields) {
+        /* Free the in-progress tag or field chain if it was never
+           attached to the point before parsing failed. */
+        free_item(item);
+    }
     LP_free_point(point);
     point = NULL;
 done:
