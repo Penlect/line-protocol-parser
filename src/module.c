@@ -109,6 +109,7 @@ try:
             goto except;
         }
         Py_DECREF(tag_value);
+        tag_value = NULL;
         tmp = tmp->next_item;
     }
     if ((fields = PyDict_New()) == NULL) {
@@ -141,6 +142,7 @@ try:
                 goto except;
             }
             Py_DECREF(field_value);
+            field_value = NULL;
             tmp = tmp->next_item;
         }
     }
