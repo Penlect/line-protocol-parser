@@ -69,6 +69,11 @@ class TestPoint(unittest.TestCase):
         p = parse_line('foobar,tag1=1 f1=123u 0')
         self.assertAlmostEqual(p['fields']['f1'], 123)
 
+    def test_from_line_field_values_large_uinteger(self):
+        value = 2**64 - 2
+        p = parse_line(f'foobar,tag1=1 f1={value}u 0')
+        self.assertEqual(p['fields']['f1'], value)
+
     def test_from_line_field_values_integer_without_timestamp(self):
         p = parse_line('foobar,tag1=1 f1=123i')
         self.assertAlmostEqual(p['fields']['f1'], 123)
@@ -108,6 +113,10 @@ class TestPoint(unittest.TestCase):
     def test_from_line_field_values_escape(self):
         p = parse_line('foobar,tag1=1 f1="\\ \\"\\,\\=" 0')
         self.assertEqual(p['fields']['f1'], '\\ \\"\\,\\=')
+
+    def test_field_value_uinteger_overflow(self):
+        with self.assertRaisesRegex(LineFormatError, 'type of field'):
+            parse_line('measurement f=18446744073709551616u 0')
 
     # TEST TIME
     def test_from_line_time(self):
