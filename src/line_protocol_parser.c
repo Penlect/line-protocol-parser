@@ -282,10 +282,11 @@ parse_value(struct LP_Item* item)
     errno = 0; // we need to reset, otherwise errno MIGHT be the value of the strtoll above
     candidate_u = strtoull(item->value.s, &endptr, 10);
     if (*endptr == 'u' && *(endptr + 1) == '\0') {
-        LP_FREE(item->value.s);
-        if (candidate_u == ULLONG_MAX && errno == ERANGE)
+        if (candidate_u == ULLONG_MAX && errno == ERANGE) {
             return 0;
+        }
 
+        LP_FREE(item->value.s);
         item->value.u = candidate_u;
         item->type = LP_UINTEGER;
         LP_DEBUG_PRINT("Type is uinteger: %llu\n", candidate_u);
