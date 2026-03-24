@@ -307,13 +307,15 @@ parse_value(struct LP_Item* item)
     }
 
     // Try parse boolan
-    if (length == 1 && tolower(*(item->value.s)) == 't' ) {
+    if (length == 1 &&
+        tolower((unsigned char) *(item->value.s)) == 't' ) {
         LP_FREE(item->value.s);
         item->value.b = 1;
         item->type = LP_BOOLEAN;
         LP_DEBUG_PRINT("Type is boolean: %d\n", item->value.b);
         return 1;
-    } else if (length == 1 && tolower(*(item->value.s)) == 'f' ) {
+    } else if (length == 1 &&
+               tolower((unsigned char) *(item->value.s)) == 'f' ) {
         LP_FREE(item->value.s);
         item->value.b = 0;
         item->type = LP_BOOLEAN;
@@ -322,7 +324,7 @@ parse_value(struct LP_Item* item)
     } else if (length == 4 || length == 5) {
         /* Convert to lower case to reduce nr of comparisons*/
         for (i = 0; i <= length; i++) {
-            boolstr[i] = tolower(item->value.s[i]);
+            boolstr[i] = (char) tolower((unsigned char) item->value.s[i]);
         }
         if ((strcmp(boolstr, "true") == 0)) {
             LP_FREE(item->value.s);
