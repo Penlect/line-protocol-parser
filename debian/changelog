@@ -1,3 +1,18 @@
+line-protocol-parser (2.0.0-1) stable; urgency=medium
+
+  * Align the single-line parser more closely with archived InfluxDB
+    v1.2 behavior while keeping Python comment-line convenience.
+  * Return None when timestamps are omitted instead of conflating
+    omission with an explicit 0 timestamp.
+  * Reject malformed keys, values, duplicate tags, trailing junk,
+    oversized measurement/tag keys, and other invalid input that older
+    releases accepted.
+  * Update the C API point model to use has_time plus signed time and
+    add the max-key-length status code.
+  * Require Python 3.10 or newer.
+
+ -- Daniel Andersson <daniel.4ndersson@gmail.com>  Wed, 25 Mar 2026 13:30:00 +0100
+
 line-protocol-parser (1.1.0-1) stable; urgency=medium
 
   * Merged 'make timestamp optional' contributed by Jakub Mach.

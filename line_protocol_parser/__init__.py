@@ -1,4 +1,4 @@
-"""Module for parsing InfluxDB line protocol strings"""
+"""Parse InfluxDB line protocol strings into dictionaries or ``None``."""
 from ._line_protocol_parser import parse_line, LineFormatError
 
 # Module metadata
@@ -9,4 +9,4 @@ __contact__ = __email__
 __copyright__ = 'Copyright (c) 2019 Daniel Andersson'
 __license__ = 'MIT'
 __url__ = "https://github.com/Penlect/line-protocol-parser"
-__version__ = '1.1.4'
+__version__ = '2.0.0'

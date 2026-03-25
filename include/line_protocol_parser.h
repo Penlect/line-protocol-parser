@@ -1,6 +1,9 @@
 #ifndef LINEPROTOCOLPARSER_H
 #define LINEPROTOCOLPARSER_H
 
+#include <stdbool.h>
+#include <stdint.h>
+
 /* Error return codes of `LP_parse_line` */
 #define LP_MEMORY_ERROR 1
 #define LP_LINE_EMPTY 2
@@ -13,6 +16,7 @@
 #define LP_FIELD_VALUE_ERROR 9
 #define LP_FIELD_VALUE_TYPE_ERROR 10
 #define LP_TIME_ERROR 11
+#define LP_KEY_TOO_LONG_ERROR 12
 
 /* Indicates which type a field has */
 enum LP_ValueType {
@@ -49,7 +53,9 @@ struct LP_Point {
     char *measurement;
     struct LP_Item *fields;
     struct LP_Item *tags;
-    unsigned long long time;
+    /* `time` is only valid when `has_time` is true. */
+    bool has_time;
+    int64_t time;
     struct LP_Point *next_point;
 };
 

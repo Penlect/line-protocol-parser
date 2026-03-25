@@ -30,6 +30,7 @@ setup(
     license=__license__,
     keywords='InfluxDB influx line protocol parser reader',
     url=__url__,
+    python_requires='>=3.10',
     ext_modules=[
         Extension(
             'line_protocol_parser._line_protocol_parser',
@@ -56,11 +57,6 @@ setup(
         'Operating System :: MacOS',
         'Operating System :: Microsoft :: Windows :: Windows 10',
         'Programming Language :: C',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
         'Programming Language :: Python :: 3.12',
