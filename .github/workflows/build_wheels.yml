@@ -10,10 +10,17 @@ on:
     types:
       - published
 
+permissions:
+  contents: read
+
 env:
   CIBW_BUILD_VERBOSITY: 3
   CIBW_TEST_COMMAND: "python -m unittest discover -v {project}/tests"
-  CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"
+  CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-* cp315-*"
+  # Free-threaded builds require a separate compatibility review.
+  CIBW_SKIP: "cp3??t-*"
+  # Preserve both Windows architectures across tooling upgrades.
+  CIBW_ARCHS_WINDOWS: "AMD64 x86"
 
 jobs:
   build_wheels:
@@ -25,21 +32,22 @@ jobs:
         os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-15-intel, macos-14]
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.3.1
+        uses: pypa/cibuildwheel@b3395e271a35f73dad77f21802abe9b986dfe299 # v4.3.1
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wheels-${{ matrix.os }}
           path: ./wheelhouse/*.whl
+          if-no-files-found: error
 
   build_sdist:
     name: Build source distribution
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build sdist
         run: pipx run build --sdist
@@ -50,15 +58,17 @@ jobs:
           git diff --exit-code
           git diff --cached --exit-code
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sdist
           path: dist/*.tar.gz
+          if-no-files-found: error
 
   upload_pypi:
     needs: [build_wheels, build_sdist]
     environment: pypi
     permissions:
+      contents: read
       id-token: write
     runs-on: ubuntu-24.04
     # upload to PyPI on every tag starting with 'v'
@@ -66,7 +76,11 @@ jobs:
     # alternatively, to publish when a GitHub Release is created, use the following rule:
     if: github.event_name == 'release' && github.event.action == 'published'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.x"
 
       - name: Verify tag matches line_protocol_parser.__version__
         run: |
@@ -98,18 +112,18 @@ jobs:
           print(f"Version check OK: {package_version}")
           PY
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: wheels-*
           path: dist
           merge-multiple: true
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: sdist
           path: dist
 
-      - uses: pypa/gh-action-pypi-publish@v1.13.0
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
           verbose: true
           skip-existing: true
