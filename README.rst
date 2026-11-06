@@ -39,7 +39,15 @@ limited to 65535 bytes, matching the archived parser limit.
 Unsigned ``123u`` field values are retained as a package extension even though
 they are not documented in the archived v1.2 reference.
 
-The ``line_protocol_parser`` module only contains the ``parse_line`` function and the ``LineFormatError`` exception which is raised on failure.
+When a field key occurs more than once in a point, the final value wins, as
+in the archived v1.2 parser. Floating-point conversion is independent of the
+application's numeric locale and accepts representable subnormal values.
+
+The ``line_protocol_parser`` module contains the ``parse_line`` function and
+the ``LineFormatError`` exception, which is raised for protocol syntax errors.
+Malformed UTF-8 encountered while converting parsed text raises
+``UnicodeDecodeError``. Comment bytes are ignored without decoding; malformed
+numeric tokens continue to raise ``LineFormatError``.
 
 Installation
 ^^^^^^^^^^^^
@@ -216,6 +224,24 @@ Please see the comments in the source and header file for more information.
 Examples from the Test Cases
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The test cases are a good source of examples. Please see: `tests/test_parse_line.py <tests/test_parse_line.py>`_.
+
+Running the tests
+^^^^^^^^^^^^^^^^^
+
+Build the extension and run the Python and standalone C regression tests:
+
+.. code-block:: bash
+
+    python3 setup.py build_ext --inplace
+    python3 -m unittest discover -s tests -v
+
+The standalone tests compile a temporary C harness with ``CC`` or Python's
+configured compiler. They inject allocation failures and count tag-key
+comparisons to check cleanup and scaling without timing-sensitive assertions.
+They are skipped if no compiler is available. Locale tests use an available
+decimal-comma locale, or one named by ``LP_TEST_LOCALE``; they are skipped if
+none is available. On glibc systems, ``LOCPATH`` can point to locale data
+generated in a temporary directory by ``localedef``.
 
 Changelog
 ^^^^^^^^^
