@@ -140,8 +140,11 @@ class TestStandaloneParser(unittest.TestCase):
         else:
             compiler = shlex.split(os.environ.get('CC') or
                                    sysconfig.get_config_var('CC') or 'cc')
-        if not shutil.which(compiler[0], path=environment.get('PATH')):
+        compiler_path = shutil.which(compiler[0], path=environment.get('PATH'))
+        if not compiler_path:
             raise unittest.SkipTest('no C compiler available for standalone tests')
+        # Windows executable lookup ignores PATH supplied only in the child env.
+        compiler[0] = compiler_path
         cls.directory = tempfile.TemporaryDirectory(prefix='TMP_lpp_tests_')
         cls.addClassCleanup(cls.directory.cleanup)
         cls.binary = Path(cls.directory.name) / 'TMP_test_parser'
