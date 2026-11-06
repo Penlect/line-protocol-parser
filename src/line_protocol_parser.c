@@ -1,3 +1,7 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -5,7 +9,13 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <limits.h>
+#include <float.h>
 #include <math.h>
+#include <locale.h>
+/* BSD libc exposes strtod_l through xlocale.h rather than locale.h. */
+#if defined(__APPLE__) || defined(__FreeBSD__)
+#include <xlocale.h>
+#endif
 
 #include "line_protocol_parser.h"
 
@@ -87,6 +97,23 @@ trim_trailing_spaces(const char *line, size_t start, size_t end)
     }
 
     return end;
+}
+
+static int
+key_is_too_long(const char *line, size_t start, size_t end)
+{
+    /* Count wire bytes, including escapes, up to the same unescaped space
+       used by the measurement/tag scanners. Bound work before allocations. */
+    for (size_t i = start; i < end; i++) {
+        if ((line[i] == ' ' && !is_scan_escaped(line, start, i)) ||
+            line[i] == '\r' || line[i] == '\n') {
+            break;
+        }
+        if (i - start >= LP_MAX_KEY_LENGTH) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 /* Create a new key-value pair container */
@@ -372,18 +399,46 @@ search_field_value_end(const char *line, size_t start, size_t end)
 }
 
 static int
-tag_key_exists(const struct LP_Item *head, const char *key)
+compare_tag_keys(const void *left, const void *right)
 {
-    while (head != NULL) {
-        if (strcmp(head->key, key) == 0) {
-            return 1;
-        }
-        head = head->next_item;
-    }
-
-    return 0;
+    return strcmp(*(const char *const *) left, *(const char *const *) right);
 }
 
+static int
+validate_tag_keys(const struct LP_Item *head)
+{
+    const struct LP_Item *item;
+    const char **keys;
+    size_t count = 0, i = 0;
+    int status = 0;
+
+    for (item = head; item != NULL; item = item->next_item) {
+        count++;
+    }
+    if (count < 2) {
+        return 0;
+    }
+    keys = LP_MALLOC(count * sizeof(*keys));
+    if (keys == NULL) {
+        return LP_MEMORY_ERROR;
+    }
+    for (item = head; item != NULL; item = item->next_item) {
+        keys[i++] = item->key;
+    }
+    /* Sort only the scratch array, preserving the public linked-list order.
+       Compare decoded keys just as the original duplicate check did. */
+    qsort(keys, count, sizeof(*keys), compare_tag_keys);
+    for (i = 1; i < count; i++) {
+        if (strcmp(keys[i - 1], keys[i]) == 0) {
+            status = LP_TAG_KEY_ERROR;
+            break;
+        }
+    }
+    LP_FREE(keys);
+    return status;
+}
+
+/* Return 1 for a float, 0 for invalid input, or -1 if locale setup fails. */
 static int
 strict_parse_float_token(const char *s, double *out)
 {
@@ -392,8 +447,15 @@ strict_parse_float_token(const char *s, double *out)
     int saw_dot = 0;
     int saw_exp = 0;
     int saw_exp_digit = 0;
+    int saw_nonzero_significand = 0;
+    int conversion_errno = 0;
     double candidate = 0.0;
     char *endptr = NULL;
+#ifdef _WIN32
+    _locale_t numeric_locale;
+#else
+    locale_t numeric_locale;
+#endif
 
     if (s[0] == '\0' || s[0] == '+') {
         return 0;
@@ -408,6 +470,9 @@ strict_parse_float_token(const char *s, double *out)
     for (; s[i] != '\0'; i++) {
         if (isdigit((unsigned char) s[i])) {
             saw_digit = 1;
+            if (!saw_exp && s[i] != '0') {
+                saw_nonzero_significand = 1;
+            }
             if (saw_exp) {
                 saw_exp_digit = 1;
             }
@@ -441,10 +506,32 @@ strict_parse_float_token(const char *s, double *out)
         return 0;
     }
 
+    /* Never change the caller's process or thread locale. Keep the standalone
+       C API independent of Python while using each platform's C-locale API. */
+#ifdef _WIN32
+    numeric_locale = _create_locale(LC_NUMERIC, "C");
+    if (numeric_locale == NULL) {
+        return -1;
+    }
     errno = 0;
-    candidate = strtod(s, &endptr);
-    if (errno == ERANGE || endptr == s || *endptr != '\0' ||
-        isfinite(candidate) == 0) {
+    candidate = _strtod_l(s, &endptr, numeric_locale);
+    conversion_errno = errno;
+    _free_locale(numeric_locale);
+#else
+    numeric_locale = newlocale(LC_NUMERIC_MASK, "C", (locale_t) 0);
+    if (numeric_locale == (locale_t) 0) {
+        return -1;
+    }
+    errno = 0;
+    candidate = strtod_l(s, &endptr, numeric_locale);
+    conversion_errno = errno;
+    freelocale(numeric_locale);
+#endif
+    /* Capture errno before locale cleanup: overflow can round to finite
+       DBL_MAX. Underflow can round up to DBL_MIN, which must stay valid. */
+    if (endptr == s || *endptr != '\0' || !isfinite(candidate) ||
+        (conversion_errno == ERANGE && fabs(candidate) > DBL_MIN) ||
+        (candidate == 0.0 && saw_nonzero_significand)) {
         return 0;
     }
 
@@ -619,7 +706,7 @@ strict_parse_timestamp(const char *s, size_t len, long long *out)
     return 1;
 }
 
-/* Convert the field value string to correct type */
+/* Convert the field value: 1 is success, 0 is invalid, -1 is out of memory. */
 static int
 parse_value(struct LP_Item* item)
 {
@@ -627,13 +714,18 @@ parse_value(struct LP_Item* item)
     signed long long candidate_i = 0;
     unsigned long long candidate_u = 0ULL;
     int candidate_b = 0;
+    int float_status = 0;
     size_t length = 0;
 
     if (item->type != LP_STRING){
         return 0;
     }
 
-    if (strict_parse_float_token(item->value.s, &candidate_d) != 0) {
+    float_status = strict_parse_float_token(item->value.s, &candidate_d);
+    if (float_status < 0) {
+        return -1;
+    }
+    if (float_status != 0) {
         LP_FREE(item->value.s);
         item->value.f = candidate_d;
         item->type = LP_FLOAT;
@@ -686,10 +778,9 @@ LP_parse_line(const char *line, int *status)
 {
     struct LP_Point *point = NULL;
     struct LP_Item *item = NULL;
-    struct LP_Item *prev_item = NULL;
     long long parsed_time = 0;
+    int parse_status = 0;
     size_t index = 0;
-    size_t key_start = 0;
     size_t start = 0;
     size_t end = strlen(line);
     size_t time_end = 0;
@@ -706,10 +797,13 @@ LP_parse_line(const char *line, int *status)
     }
 
     start = skip_whitespace(line, 0, end);
-    key_start = start;
     if (start >= end) {
         // Zero length line
         *status = LP_LINE_EMPTY;
+        goto error;
+    }
+    if (key_is_too_long(line, start, end)) {
+        *status = LP_KEY_TOO_LONG_ERROR;
         goto error;
     }
     if ((point = new_point()) == NULL) {
@@ -740,9 +834,9 @@ LP_parse_line(const char *line, int *status)
             *status = LP_MEMORY_ERROR;
             goto error;
         }
-        if (prev_item != NULL) {
-            item->next_item = prev_item;
-        }
+        /* Attach immediately so every allocation failure can free the point. */
+        item->next_item = point->tags;
+        point->tags = item;
         // TAG KEY
         if ((index = search_tag_key_equal(line, start, end)) == 0){
             // Failed to find end of tag key
@@ -755,10 +849,6 @@ LP_parse_line(const char *line, int *status)
             goto error;
         }
         LP_DEBUG_PRINT("New tag key: %s\n", item->key);
-        if (tag_key_exists(prev_item, item->key) != 0) {
-            *status = LP_TAG_KEY_ERROR;
-            goto error;
-        }
         start = index + 1;
         // TAG VALUE
         if ((index = search_tag_value_end(line, start, end)) == 0){
@@ -773,16 +863,10 @@ LP_parse_line(const char *line, int *status)
         }
         LP_DEBUG_PRINT("New tag value: %s\n", item->value.s);
         start = index + 1;
-
-        prev_item = item;
     }
-    // Hook the chain of tags to the point
-    if (item != NULL) {
-        point->tags = item;
-    }
-
-    if (index - key_start > LP_MAX_KEY_LENGTH) {
-        *status = LP_KEY_TOO_LONG_ERROR;
+    parse_status = validate_tag_keys(point->tags);
+    if (parse_status != 0) {
+        *status = parse_status;
         goto error;
     }
 
@@ -790,16 +874,14 @@ LP_parse_line(const char *line, int *status)
     // measurements/tags from the fields.
     start = skip_whitespace(line, start, end);
     item = NULL;
-    prev_item = NULL;
     do {
         if ((item = new_item()) == NULL) {
             // Failed to create new field item
             *status = LP_MEMORY_ERROR;
             goto error;
         }
-        if (prev_item != NULL) {
-            item->next_item = prev_item;
-        }
+        item->next_item = point->fields;
+        point->fields = item;
         // FIELD KEY
         if ((index = search_field_key_equal(line, start, end)) == 0){
             // Failed to find end of field key
@@ -828,17 +910,12 @@ LP_parse_line(const char *line, int *status)
         start = index + 1;
 
         /* Convert the string value to correct line protocol type */
-        if (parse_value(item) == 0) {
-            *status = LP_FIELD_VALUE_TYPE_ERROR;
+        parse_status = parse_value(item);
+        if (parse_status <= 0) {
+            *status = parse_status < 0 ? LP_MEMORY_ERROR : LP_FIELD_VALUE_TYPE_ERROR;
             goto error;
         }
-
-        prev_item = item;
     } while (line[index] == ',');
-    // Hook the chain of fields to the point
-    if (item != NULL) {
-        point->fields = item;
-    }
 
     // Parse the nanosecond timestamp
     start = skip_whitespace(line, start, end);
@@ -857,12 +934,6 @@ LP_parse_line(const char *line, int *status)
     }
     goto done;
 error:
-    if (item != NULL && point != NULL &&
-        item != point->tags && item != point->fields) {
-        /* Free the in-progress tag or field chain if it was never
-           attached to the point before parsing failed. */
-        free_item(item);
-    }
     LP_free_point(point);
     point = NULL;
 done:

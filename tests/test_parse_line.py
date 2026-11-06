@@ -8,6 +8,7 @@ an explicit ``0`` timestamp.
 
 # Built-in imports
 from sys import float_info
+import math
 import unittest
 
 # Project
@@ -27,6 +28,20 @@ class TestPoint(unittest.TestCase):
 
     def test_from_comment_line_bytes(self):
         self.assertIsNone(parse_line(b'# comment'))
+
+    def test_non_utf8_comment_bytes_are_still_ignored(self):
+        for line in (b'# comment \xff', b' \t# \x80\xc0\r\n'):
+            self.assertIsNone(parse_line(line))
+
+    def test_non_utf8_numeric_token_keeps_format_error(self):
+        with self.assertRaises(LineFormatError):
+            parse_line(b'm f=\xff')
+
+    def test_non_utf8_keys_and_tags_keep_decode_error(self):
+        for line in (b'\xff f=1i', b'm,\xff=v f=1i',
+                     b'm,t=\xff f=1i', b'm \xff=1i'):
+            with self.subTest(line=line), self.assertRaises(UnicodeDecodeError):
+                parse_line(line)
 
     def test_from_line(self):
         for _ in range(100):
@@ -208,6 +223,29 @@ class TestPoint(unittest.TestCase):
         with self.assertRaisesRegex(LineFormatError, 'max key length'):
             parse_line(f'{measurement} value=1i 0')
 
+    def test_max_key_length_counts_escaped_spaces_and_leading_whitespace(self):
+        key = 'm,t=' + r'\ ' * 32765 + 'v'
+        self.assertEqual(len(key), 65535)
+        point = parse_line(' \t' + key + ' f=1i')
+        self.assertEqual(point['tags']['t'], ' ' * 32765 + 'v')
+        with self.assertRaisesRegex(LineFormatError, 'max key length'):
+            parse_line(key + 'v f=1i')
+
+    def test_max_key_length_does_not_limit_fields(self):
+        value = 'v' * 65536
+        self.assertEqual(parse_line(f'm f="{value}"')['fields']['f'], value)
+
+    def test_many_tags_preserve_values_and_order(self):
+        names = [f't{i:05d}' for i in range(6000)]
+        point = parse_line('m' + ''.join(f',{name}=v' for name in names) + ' f=1i')
+        self.assertEqual(list(point['tags']), names[::-1])
+        self.assertTrue(all(value == 'v' for value in point['tags'].values()))
+
+    def test_oversized_many_tag_key_is_rejected(self):
+        line = 'm' + ''.join(f',t{i:05d}=v' for i in range(32000)) + ' f=1i'
+        with self.assertRaisesRegex(LineFormatError, 'max key length'):
+            parse_line(line)
+
     # TEST FIELD KEYS
     def test_from_line_field_keys(self):
         p = parse_line('foobar field\\ \\,\\=\\"\\1=1,field2=2 1234')
@@ -274,6 +312,37 @@ class TestPoint(unittest.TestCase):
     def test_from_line_field_values_float_minimum_with_leading_zeros(self):
         p = parse_line(f'cpu value=-0000000{float_info.max} 0')
         self.assertEqual(p['fields']['value'], -float_info.max)
+
+    def test_representable_subnormal_floats(self):
+        for token in ('5e-324', '-5e-324', '1e-310', '-1e-308',
+                      '2.2250738585072012e-308'):
+            with self.subTest(token=token):
+                self.assertEqual(parse_line(f'm f={token}')['fields']['f'], float(token))
+
+    def test_nonzero_float_underflow_is_still_rejected(self):
+        for token in ('1e-325', '-1e-400'):
+            with self.subTest(token=token), self.assertRaises(LineFormatError):
+                parse_line(f'm f={token}')
+
+    def test_zero_with_extreme_exponent_preserves_sign(self):
+        for token in ('0e-400', '-0e-400', '0e400', '-0e400'):
+            with self.subTest(token=token):
+                value = parse_line(f'm f={token}')['fields']['f']
+                self.assertEqual(value, 0.0)
+                self.assertEqual(math.copysign(1.0, value),
+                                 -1.0 if token.startswith('-') else 1.0)
+
+    def test_duplicate_fields_keep_final_value_and_type(self):
+        for token, expected in (('2i', 2), ('3u', 3), ('2.5', 2.5),
+                                ('true', True), ('"last"', 'last')):
+            with self.subTest(token=token):
+                point = parse_line(f'm f=1i,other=9i,f={token}')
+                self.assertEqual(point['fields'], {'f': expected, 'other': 9})
+                self.assertIs(type(point['fields']['f']), type(expected))
+
+    def test_duplicate_escaped_field_keys_keep_final_value(self):
+        point = parse_line(r'm a\ b=1i,other=2i,a\ b=3i')
+        self.assertEqual(point['fields'], {'a b': 3, 'other': 2})
 
     def test_from_line_field_values_float_without_timestamp(self):
         p = parse_line('foobar,tag1=1 f1=3.14')
@@ -613,6 +682,14 @@ class TestPoint(unittest.TestCase):
     def test_duplicate_tag_key_error_unsorted(self):
         with self.assertRaisesRegex(LineFormatError, 'key of tag'):
             parse_line('cpu,b=2,c=3,b=1 value=1i 0')
+
+    def test_duplicate_escaped_tag_keys_are_rejected(self):
+        with self.assertRaisesRegex(LineFormatError, 'key of tag'):
+            parse_line(r'm,a\ b=1,z=2,a\ b=3 f=1i')
+
+    def test_tag_key_comparison_preserves_case_and_escapes(self):
+        point = parse_line(r'm,a=1,A=2,a\=b=3,a\\=b=4 f=1i')
+        self.assertEqual(point['tags'], {'a': '1', 'A': '2', 'a=b': '3', r'a\=b': '4'})
 
     def test_field_key_error(self):
         with self.assertRaisesRegex(LineFormatError, 'key of field'):

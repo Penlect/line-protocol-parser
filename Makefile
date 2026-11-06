@@ -7,7 +7,7 @@ release:
 	tar --numeric-owner --group 0 --owner 0 -cJh \
 	  --xform "s,^,$(PKGNAME)-$(VERSION)/," \
 	  -f $(PKGNAME)-$(VERSION).tar.xz \
-	  line_protocol_parser/*.py include/*.h src/*.c tests/*.py setup.py \
+	  line_protocol_parser/*.py include/*.h src/*.c tests/*.py tests/*.c setup.py \
 	  README.rst
 
 deb: release

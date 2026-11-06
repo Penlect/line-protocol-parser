@@ -71,6 +71,7 @@ parse_line(PyObject* self, PyObject* args)
 {
     PyObject *measurement = NULL;
     PyObject *tag_value = NULL;
+    PyObject *field_key = NULL;
     PyObject *field_value = NULL;
     PyObject *tags = NULL, *fields = NULL;
     PyObject *time = NULL;
@@ -80,6 +81,7 @@ parse_line(PyObject* self, PyObject* args)
     char *line = NULL;
     Py_ssize_t line_len = 0;
     int status = 0;
+    int field_exists = 0;
     goto try;
 try:
     assert(!PyErr_Occurred());
@@ -188,9 +190,24 @@ try:
                     PyErr_SetString(LineFormatError, "Unexpected value type.");
                     goto except;
             }
-            if ((PyDict_SetItemString(fields, tmp->key, field_value)) == -1) {
+            if (field_value == NULL) {
                 goto except;
             }
+            field_key = PyUnicode_FromString(tmp->key);
+            if (field_key == NULL) {
+                goto except;
+            }
+            field_exists = PyDict_Contains(fields, field_key);
+            if (field_exists == -1) {
+                goto except;
+            }
+            /* The list is reversed: an existing key holds the final input
+               value. Still convert every value so decoding errors propagate. */
+            if (field_exists == 0 &&
+                PyDict_SetItem(fields, field_key, field_value) == -1) {
+                goto except;
+            }
+            Py_CLEAR(field_key);
             Py_DECREF(field_value);
             field_value = NULL;
             tmp = tmp->next_item;
@@ -213,6 +230,7 @@ try:
     goto finally;
 except:
     Py_XDECREF(tag_value);
+    Py_XDECREF(field_key);
     Py_XDECREF(field_value);
     output = NULL;
 finally:

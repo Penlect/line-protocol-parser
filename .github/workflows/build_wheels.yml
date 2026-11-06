@@ -27,9 +27,11 @@ jobs:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      # Finish every platform even when another matrix job fails.
+      fail-fast: false
       matrix:
-        # macos-15-intel is an Intel runner, macos-14 is Apple Silicon
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-15-intel, macos-14]
+        # Keep both Intel and Apple Silicon on supported runner images.
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-15-intel, macos-15]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -42,6 +44,29 @@ jobs:
           name: wheels-${{ matrix.os }}
           path: ./wheelhouse/*.whl
           if-no-files-found: error
+
+  test_freebsd:
+    name: Test standalone C on FreeBSD 14.3
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Compile and test with FreeBSD libc
+        uses: vmactions/freebsd-vm@c46abacb49f09938ca4e1702d15d836285d694cc # v1.5.9
+        with:
+          release: '14.3'
+          run: |
+            set -eu
+            # Compile separately so harness headers cannot hide missing includes.
+            cc -std=c11 -Wall -Wextra -Werror=implicit-function-declaration \
+              -Iinclude -c src/line_protocol_parser.c -o /tmp/TMP_parser.o
+            cc -std=c11 -Wall -Wextra -Werror=implicit-function-declaration \
+              -frounding-math -Iinclude tests/test_parser.c -lm \
+              -o /tmp/TMP_parser_tests
+            for case_name in allocations tags rounding-positive rounding-negative; do
+              /tmp/TMP_parser_tests "$case_name"
+            done
+            /tmp/TMP_parser_tests locale sv_SE.UTF-8
 
   build_sdist:
     name: Build source distribution
@@ -65,7 +90,7 @@ jobs:
           if-no-files-found: error
 
   upload_pypi:
-    needs: [build_wheels, build_sdist]
+    needs: [build_wheels, build_sdist, test_freebsd]
     environment: pypi
     permissions:
       contents: read
