@@ -236,7 +236,9 @@ Build the extension and run the Python and standalone C regression tests:
     python3 -m unittest discover -s tests -v
 
 The standalone tests compile a temporary C harness with ``CC`` or Python's
-configured compiler. They inject allocation failures and count tag-key
+configured compiler. On Windows they default to MSVC for the running Python's
+architecture, matching the wheel's compiler and C runtime. They inject
+allocation failures and count tag-key
 comparisons to check cleanup and scaling without timing-sensitive assertions.
 They are skipped if no compiler is available. Locale tests use an available
 decimal-comma locale, or one named by ``LP_TEST_LOCALE``; they are skipped if

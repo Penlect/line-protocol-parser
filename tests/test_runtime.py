@@ -16,6 +16,38 @@ import tempfile
 import unittest
 
 
+def msvc_environment():
+    """Load the MSVC environment for the running Python's architecture."""
+    architecture = 'amd64' if sys.maxsize > 2**32 else 'x86'
+    vswhere = (Path(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)'))
+               / 'Microsoft Visual Studio' / 'Installer' / 'vswhere.exe')
+    if not vswhere.is_file():
+        if shutil.which('cl'):
+            return os.environ.copy()
+        raise unittest.SkipTest('no MSVC installation available for standalone tests')
+    result = subprocess.run(
+        [str(vswhere), '-latest', '-products', '*', '-requires',
+         'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
+         '-property', 'installationPath', '-utf8'],
+        capture_output=True, text=True, encoding='utf-8', check=True,
+    )
+    installation = result.stdout.strip()
+    if not installation:
+        raise unittest.SkipTest('no MSVC C tools available for standalone tests')
+    vcvarsall = Path(installation) / 'VC' / 'Auxiliary' / 'Build' / 'vcvarsall.bat'
+    result = subprocess.run(
+        ['cmd', '/d', '/u', '/c',
+         f'call "{vcvarsall}" {architecture} >nul && set'],
+        capture_output=True, text=True, encoding='utf-16-le', check=True,
+    )
+    environment = os.environ.copy()
+    for line in result.stdout.splitlines():
+        name, separator, value = line.partition('=')
+        if name and separator:
+            environment[name.upper()] = value
+    return environment
+
+
 def decimal_comma_locale():
     """Find a usable numeric locale without changing the test runner's locale."""
     result = subprocess.run(
@@ -98,9 +130,15 @@ assert locale.localeconv()['decimal_point'] == ','
 class TestStandaloneParser(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        compiler = shlex.split(os.environ.get('CC') or
-                               sysconfig.get_config_var('CC') or 'cc')
-        if not shutil.which(compiler[0]):
+        environment = os.environ.copy()
+        if os.name == 'nt' and not os.environ.get('CC'):
+            # Match the wheel's MSVC/UCRT toolchain instead of a MinGW cc on PATH.
+            compiler = ['cl']
+            environment = msvc_environment()
+        else:
+            compiler = shlex.split(os.environ.get('CC') or
+                                   sysconfig.get_config_var('CC') or 'cc')
+        if not shutil.which(compiler[0], path=environment.get('PATH')):
             raise unittest.SkipTest('no C compiler available for standalone tests')
         cls.directory = tempfile.TemporaryDirectory(prefix='TMP_lpp_tests_')
         cls.addClassCleanup(cls.directory.cleanup)
@@ -119,7 +157,7 @@ class TestStandaloneParser(unittest.TestCase):
                                   '-o', str(cls.binary), '-lm']
         # Rounding-mode tests require the compiler to honor runtime fenv changes.
         print('Standalone C compiler:', command, flush=True)
-        result = subprocess.run(command, cwd=cls.directory.name,
+        result = subprocess.run(command, cwd=cls.directory.name, env=environment,
                                 capture_output=True, text=True, check=False)
         if result.returncode:
             raise AssertionError(result.stdout + result.stderr)
