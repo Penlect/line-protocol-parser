@@ -197,19 +197,19 @@ static void test_rounding(int negative)
             LP_free_point(point);
             CHECK(live_allocations == 0);
         }
-        /* A previous conversion's ERANGE must not reject a normal value. */
+        /* A previous conversion's ERANGE must not reject a normal value.
+           Use an integer-valued float token: the Windows CRT can convert 1.5
+           one ULP away from exact under directed rounding. */
         int status = 0;
         errno = ERANGE;
-        struct LP_Point *point = LP_parse_line(negative ? "m f=-1.5" : "m f=1.5", &status);
+        struct LP_Point *point = LP_parse_line(negative ? "m f=-1" : "m f=1", &status);
         CHECK(point != NULL);
-        if (point->fields->value.f != (negative ? -1.5 : 1.5)) {
+        CHECK(point->fields->type == LP_FLOAT);
+        if (point->fields->value.f != (negative ? -1.0 : 1.0)) {
             fprintf(stderr, "rounding=%d negative=%d value=%a expected=%a\n",
-                    modes[i], negative, point->fields->value.f, negative ? -1.5 : 1.5);
-#ifdef __MINGW32__
-            fprintf(stderr, "Standalone harness compiled with MinGW\n");
-#endif
+                    modes[i], negative, point->fields->value.f, negative ? -1.0 : 1.0);
         }
-        CHECK(point->fields->value.f == (negative ? -1.5 : 1.5));
+        CHECK(point->fields->value.f == (negative ? -1.0 : 1.0));
         LP_free_point(point);
         CHECK(live_allocations == 0);
         CHECK(fegetround() == modes[i]);
