@@ -12,7 +12,8 @@
 #include <float.h>
 #include <math.h>
 #include <locale.h>
-#ifdef __APPLE__
+/* BSD libc exposes strtod_l through xlocale.h rather than locale.h. */
+#if defined(__APPLE__) || defined(__FreeBSD__)
 #include <xlocale.h>
 #endif
 

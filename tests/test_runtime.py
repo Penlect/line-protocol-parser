@@ -150,16 +150,24 @@ class TestStandaloneParser(unittest.TestCase):
         cls.binary = Path(cls.directory.name) / 'TMP_test_parser'
         root = Path(__file__).resolve().parent.parent
         source = root / 'tests' / 'test_parser.c'
+        standalone_source = root / 'src' / 'line_protocol_parser.c'
+        cls.compiler_environment = environment
         if Path(compiler[0]).name.lower() in ('cl', 'cl.exe'):
             cls.binary = cls.binary.with_suffix('.exe')
-            command = compiler + ['/nologo', '/std:c11', '/W4', '/fp:strict',
-                                  '/I' + str(root / 'include'), str(source),
-                                  '/Fe:' + str(cls.binary)]
+            flags = ['/nologo', '/std:c11', '/W4', '/fp:strict',
+                     '/I' + str(root / 'include')]
+            command = compiler + flags + [str(source), '/Fe:' + str(cls.binary)]
+            cls.standalone_command = compiler + flags + [
+                '/c', str(standalone_source),
+                '/Fo:' + str(cls.binary.with_suffix('.obj'))]
         else:
-            command = compiler + ['-std=c11', '-Wall', '-Wextra', '-frounding-math',
-                                  '-Werror=implicit-function-declaration',
-                                  '-I', str(root / 'include'), str(source),
-                                  '-o', str(cls.binary), '-lm']
+            flags = ['-std=c11', '-Wall', '-Wextra', '-frounding-math',
+                     '-Werror=implicit-function-declaration',
+                     '-I', str(root / 'include')]
+            command = compiler + flags + [str(source), '-o', str(cls.binary), '-lm']
+            cls.standalone_command = compiler + flags + [
+                '-c', str(standalone_source),
+                '-o', str(cls.binary.with_suffix('.o'))]
         # Rounding-mode tests require the compiler to honor runtime fenv changes.
         print('Standalone C compiler:', command, flush=True)
         result = subprocess.run(command, cwd=cls.directory.name, env=environment,
@@ -180,6 +188,15 @@ class TestStandaloneParser(unittest.TestCase):
 
     def test_standalone_numeric_locale(self):
         self.run_case('locale', decimal_comma_locale())
+
+    def test_standalone_source_compiles_without_harness_headers(self):
+        # The harness and Python.h can hide missing platform-specific includes.
+        result = subprocess.run(
+            self.standalone_command, cwd=self.directory.name,
+            env=self.compiler_environment, capture_output=True, text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_positive_float_overflow_and_subnormals_in_all_rounding_modes(self):
         self.run_case('rounding-positive')

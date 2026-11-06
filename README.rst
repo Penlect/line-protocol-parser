@@ -245,6 +245,10 @@ decimal-comma locale, or one named by ``LP_TEST_LOCALE``; they are skipped if
 none is available. On glibc systems, ``LOCPATH`` can point to locale data
 generated in a temporary directory by ``localedef``.
 
+The parser source is also compiled independently of the harness and Python
+headers, so missing platform headers cannot be masked by either wrapper.
+CI runs the native C regressions on FreeBSD in addition to the wheel platforms.
+
 Changelog
 ^^^^^^^^^
 The changelog is maintained in the debian directory, please check there: `changelog <debian/changelog>`_.
