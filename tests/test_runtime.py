@@ -35,11 +35,13 @@ def msvc_environment():
     if not installation:
         raise unittest.SkipTest('no MSVC C tools available for standalone tests')
     vcvarsall = Path(installation) / 'VC' / 'Auxiliary' / 'Build' / 'vcvarsall.bat'
+    # cmd.exe needs its own quoting, not subprocess's C argv list escaping.
     result = subprocess.run(
-        ['cmd', '/d', '/u', '/c',
-         f'call "{vcvarsall}" {architecture} >nul && set'],
-        capture_output=True, text=True, encoding='utf-16-le', check=True,
+        f'cmd /d /u /c call "{vcvarsall}" {architecture} >nul && set',
+        capture_output=True, text=True, encoding='utf-16-le', check=False,
     )
+    if result.returncode:
+        raise AssertionError('MSVC environment setup failed: ' + result.stderr)
     environment = os.environ.copy()
     for line in result.stdout.splitlines():
         name, separator, value = line.partition('=')
