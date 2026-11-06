@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <locale.h>
+#include <fenv.h>
+#include <float.h>
 #ifdef __APPLE__
 #include <xlocale.h>
 #endif
@@ -164,6 +166,50 @@ static void test_locale(const char *name)
     free(saved);
 }
 
+static void test_rounding(int negative)
+{
+    const int modes[] = {FE_TONEAREST, FE_DOWNWARD, FE_UPWARD, FE_TOWARDZERO};
+    const char *overflow[] = {"1e400", "1.8e308"};
+    const char *subnormal[] = {"5e-324", "1e-310", "2.2250738585072012e-308"};
+    int original_mode = fegetround();
+    char line[80];
+    CHECK(original_mode != -1);
+
+    for (size_t i = 0; i < sizeof(modes) / sizeof(*modes); i++) {
+        CHECK(fesetround(modes[i]) == 0);
+        for (size_t j = 0; j < sizeof(overflow) / sizeof(*overflow); j++) {
+            int status = 0;
+            snprintf(line, sizeof(line), "m f=%s%s", negative ? "-" : "", overflow[j]);
+            struct LP_Point *point = LP_parse_line(line, &status);
+            CHECK(point == NULL);
+            CHECK(status == LP_FIELD_VALUE_TYPE_ERROR);
+            CHECK(live_allocations == 0);
+        }
+        for (size_t j = 0; j < sizeof(subnormal) / sizeof(*subnormal); j++) {
+            int status = 0;
+            snprintf(line, sizeof(line), "m f=%s%s", negative ? "-" : "", subnormal[j]);
+            struct LP_Point *point = LP_parse_line(line, &status);
+            CHECK(point != NULL);
+            CHECK(point->fields->type == LP_FLOAT);
+            double value = point->fields->value.f;
+            CHECK(fabs(value) > 0.0 && fabs(value) <= DBL_MIN);
+            CHECK((value < 0.0) == negative);
+            LP_free_point(point);
+            CHECK(live_allocations == 0);
+        }
+        /* A previous conversion's ERANGE must not reject a normal value. */
+        int status = 0;
+        errno = ERANGE;
+        struct LP_Point *point = LP_parse_line(negative ? "m f=-1.5" : "m f=1.5", &status);
+        CHECK(point != NULL);
+        CHECK(point->fields->value.f == (negative ? -1.5 : 1.5));
+        LP_free_point(point);
+        CHECK(live_allocations == 0);
+        CHECK(fegetround() == modes[i]);
+    }
+    CHECK(fesetround(original_mode) == 0);
+}
+
 int main(int argc, char **argv)
 {
     CHECK(argc >= 2);
@@ -174,6 +220,10 @@ int main(int argc, char **argv)
     } else if (strcmp(argv[1], "locale") == 0) {
         CHECK(argc == 3);
         test_locale(argv[2]);
+    } else if (strcmp(argv[1], "rounding-positive") == 0) {
+        test_rounding(0);
+    } else if (strcmp(argv[1], "rounding-negative") == 0) {
+        test_rounding(1);
     } else {
         return 1;
     }

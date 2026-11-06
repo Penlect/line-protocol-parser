@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <limits.h>
+#include <float.h>
 #include <math.h>
 #include <locale.h>
 #ifdef __APPLE__
@@ -446,6 +447,7 @@ strict_parse_float_token(const char *s, double *out)
     int saw_exp = 0;
     int saw_exp_digit = 0;
     int saw_nonzero_significand = 0;
+    int conversion_errno = 0;
     double candidate = 0.0;
     char *endptr = NULL;
 #ifdef _WIN32
@@ -510,19 +512,24 @@ strict_parse_float_token(const char *s, double *out)
     if (numeric_locale == NULL) {
         return -1;
     }
+    errno = 0;
     candidate = _strtod_l(s, &endptr, numeric_locale);
+    conversion_errno = errno;
     _free_locale(numeric_locale);
 #else
     numeric_locale = newlocale(LC_NUMERIC_MASK, "C", (locale_t) 0);
     if (numeric_locale == (locale_t) 0) {
         return -1;
     }
+    errno = 0;
     candidate = strtod_l(s, &endptr, numeric_locale);
+    conversion_errno = errno;
     freelocale(numeric_locale);
 #endif
-    /* ERANGE can also mean a representable subnormal. Reject only overflow
-       and nonzero inputs rounded all the way to zero. */
+    /* Capture errno before locale cleanup: overflow can round to finite
+       DBL_MAX. Underflow can round up to DBL_MIN, which must stay valid. */
     if (endptr == s || *endptr != '\0' || !isfinite(candidate) ||
+        (conversion_errno == ERANGE && fabs(candidate) > DBL_MIN) ||
         (candidate == 0.0 && saw_nonzero_significand)) {
         return 0;
     }

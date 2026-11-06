@@ -135,3 +135,9 @@ class TestStandaloneParser(unittest.TestCase):
 
     def test_standalone_numeric_locale(self):
         self.run_case('locale', decimal_comma_locale())
+
+    def test_positive_float_overflow_and_subnormals_in_all_rounding_modes(self):
+        self.run_case('rounding-positive')
+
+    def test_negative_float_overflow_and_subnormals_in_all_rounding_modes(self):
+        self.run_case('rounding-negative')
