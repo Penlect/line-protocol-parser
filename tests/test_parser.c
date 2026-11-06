@@ -202,6 +202,13 @@ static void test_rounding(int negative)
         errno = ERANGE;
         struct LP_Point *point = LP_parse_line(negative ? "m f=-1.5" : "m f=1.5", &status);
         CHECK(point != NULL);
+        if (point->fields->value.f != (negative ? -1.5 : 1.5)) {
+            fprintf(stderr, "rounding=%d negative=%d value=%a expected=%a\n",
+                    modes[i], negative, point->fields->value.f, negative ? -1.5 : 1.5);
+#ifdef __MINGW32__
+            fprintf(stderr, "Standalone harness compiled with MinGW\n");
+#endif
+        }
         CHECK(point->fields->value.f == (negative ? -1.5 : 1.5));
         LP_free_point(point);
         CHECK(live_allocations == 0);

@@ -27,6 +27,8 @@ jobs:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      # Finish every platform even when another matrix job fails.
+      fail-fast: false
       matrix:
         # macos-15-intel is an Intel runner, macos-14 is Apple Silicon
         os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-15-intel, macos-14]

@@ -109,14 +109,16 @@ class TestStandaloneParser(unittest.TestCase):
         source = root / 'tests' / 'test_parser.c'
         if Path(compiler[0]).name.lower() in ('cl', 'cl.exe'):
             cls.binary = cls.binary.with_suffix('.exe')
-            command = compiler + ['/nologo', '/std:c11', '/W4',
+            command = compiler + ['/nologo', '/std:c11', '/W4', '/fp:strict',
                                   '/I' + str(root / 'include'), str(source),
                                   '/Fe:' + str(cls.binary)]
         else:
-            command = compiler + ['-std=c11', '-Wall', '-Wextra',
+            command = compiler + ['-std=c11', '-Wall', '-Wextra', '-frounding-math',
                                   '-Werror=implicit-function-declaration',
                                   '-I', str(root / 'include'), str(source),
                                   '-o', str(cls.binary), '-lm']
+        # Rounding-mode tests require the compiler to honor runtime fenv changes.
+        print('Standalone C compiler:', command, flush=True)
         result = subprocess.run(command, cwd=cls.directory.name,
                                 capture_output=True, text=True, check=False)
         if result.returncode:
