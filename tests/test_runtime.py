@@ -183,6 +183,9 @@ class TestStandaloneParser(unittest.TestCase):
     def test_allocation_failures_release_every_allocation(self):
         self.run_case('allocations')
 
+    def test_success_clears_previous_error_status(self):
+        self.run_case('status')
+
     def test_tag_validation_has_bounded_comparison_cost(self):
         self.run_case('tags')
 

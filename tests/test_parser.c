@@ -111,6 +111,18 @@ static void test_allocations(void)
     fail_locale = 0;
 }
 
+static void test_status(void)
+{
+    int status = 0;
+    struct LP_Point *point = LP_parse_line("", &status);
+    CHECK(point == NULL);
+    CHECK(status == LP_LINE_EMPTY);
+    point = LP_parse_line("m f=1", &status);
+    CHECK(point != NULL);
+    CHECK(status == 0);
+    LP_free_point(point);
+}
+
 static void test_tags(void)
 {
     const size_t counts[] = {6000, 32000};
@@ -222,6 +234,8 @@ int main(int argc, char **argv)
     CHECK(argc >= 2);
     if (strcmp(argv[1], "allocations") == 0) {
         test_allocations();
+    } else if (strcmp(argv[1], "status") == 0) {
+        test_status();
     } else if (strcmp(argv[1], "tags") == 0) {
         test_tags();
     } else if (strcmp(argv[1], "locale") == 0) {

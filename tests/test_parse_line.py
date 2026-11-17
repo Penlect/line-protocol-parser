@@ -530,6 +530,22 @@ class TestPoint(unittest.TestCase):
         p = parse_line('foobar,tag1=1 f1=0 -1')
         self.assertEqual(p['time'], -1)
 
+    def test_zero_padded_timestamps(self):
+        for sign in ('', '-'):
+            for digits in ('0', '1', '9223372036854775806'):
+                with self.subTest(sign=sign, digits=digits):
+                    token = sign + '0' * 64 + digits
+                    point = parse_line(f'm f=1 {token}   \r\n')
+                    self.assertEqual(point['time'], int(sign + digits))
+
+    def test_invalid_zero_padded_timestamps(self):
+        for sign in ('', '-'):
+            for digits in ('9223372036854775807', '99999999999999999999', '1x'):
+                with self.subTest(sign=sign, digits=digits):
+                    token = sign + '0' * 64 + digits
+                    with self.assertRaisesRegex(LineFormatError, 'nanoseconds'):
+                        parse_line(f'm f=1 {token}')
+
     def test_from_line_time_minimum_valid(self):
         p = parse_line('foobar,tag1=1 f1=0 -9223372036854775806')
         self.assertEqual(p['time'], -9223372036854775806)
@@ -722,6 +738,11 @@ class TestPoint(unittest.TestCase):
     def test_field_value_error_unbalanced_quotes(self):
         with self.assertRaisesRegex(LineFormatError, 'value of field'):
             parse_line('cpu,host=serverA value="test')
+
+    def test_field_value_error_reopened_string(self):
+        for value in ('"left"x=2"right"', '"left""right"'):
+            with self.subTest(value=value), self.assertRaises(LineFormatError):
+                parse_line(f'm f={value},g=1 0')
 
     def test_field_value_error_trailing_text_after_string(self):
         with self.assertRaises(LineFormatError):

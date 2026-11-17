@@ -63,7 +63,7 @@ jobs:
             cc -std=c11 -Wall -Wextra -Werror=implicit-function-declaration \
               -frounding-math -Iinclude tests/test_parser.c -lm \
               -o /tmp/TMP_parser_tests
-            for case_name in allocations tags rounding-positive rounding-negative; do
+            for case_name in allocations status tags rounding-positive rounding-negative; do
               /tmp/TMP_parser_tests "$case_name"
             done
             /tmp/TMP_parser_tests locale sv_SE.UTF-8
