@@ -1,0 +1,4 @@
+# The C test harness compiles against the parser source and headers.
+tests
+src
+include
