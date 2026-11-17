@@ -36,6 +36,7 @@ setup(
             'line_protocol_parser._line_protocol_parser',
             sources=['src/line_protocol_parser.c', 'src/module.c'],
             include_dirs=['include'],
+            depends=['include/line_protocol_parser.h'],
             define_macros=[
                 ('LP_MALLOC', 'PyMem_Malloc'),
                 ('LP_FREE', 'PyMem_Free'),

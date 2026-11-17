@@ -380,7 +380,17 @@ search_field_value_end(const char *line, size_t start, size_t end)
             continue;
         }
         if (line[i] == '"') {
-            quoted = !quoted;
+            if (quoted) {
+                i++;
+                if (i == end || line[i] == ' ' || line[i] == ',') {
+                    return i;
+                }
+                return 0;
+            }
+            if (i != start) {
+                return 0;
+            }
+            quoted = 1;
             i++;
             continue;
         }
@@ -667,35 +677,30 @@ decode_quoted_string_inplace(char *s)
 static int
 strict_parse_timestamp(const char *s, size_t len, long long *out)
 {
-    char timestamp[32];
     size_t i = 0;
     long long candidate = 0;
     char *endptr = NULL;
 
-    if (len == 0 || len >= sizeof(timestamp)) {
+    if (len == 0) {
         return 0;
     }
-    memcpy(timestamp, s, len);
-    timestamp[len] = '\0';
 
-    if (timestamp[0] == '+') {
-        return 0;
-    }
-    if (timestamp[0] == '-') {
+    if (s[0] == '-') {
         i++;
     }
     if (i == len) {
         return 0;
     }
     for (; i < len; i++) {
-        if (!isdigit((unsigned char) timestamp[i])) {
+        if (!isdigit((unsigned char) s[i])) {
             return 0;
         }
     }
 
     errno = 0;
-    candidate = strtoll(timestamp, &endptr, 10);
-    if (errno == ERANGE || endptr != timestamp + len) {
+    /* The timestamp ends at whitespace, a line terminator, or NUL. */
+    candidate = strtoll(s, &endptr, 10);
+    if (errno == ERANGE || endptr != s + len) {
         return 0;
     }
     if (candidate < LP_MIN_TIMESTAMP || candidate > LP_MAX_TIMESTAMP) {
@@ -932,6 +937,7 @@ LP_parse_line(const char *line, int *status)
         point->time = parsed_time;
         LP_DEBUG_PRINT("Time: %lld\n", (long long) point->time);
     }
+    *status = 0;
     goto done;
 error:
     LP_free_point(point);

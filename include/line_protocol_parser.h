@@ -59,6 +59,7 @@ struct LP_Point {
     struct LP_Point *next_point;
 };
 
+/* Sets *status to zero on success or an LP error code on failure. */
 struct LP_Point*
 LP_parse_line(const char *line, int *status);
 void
